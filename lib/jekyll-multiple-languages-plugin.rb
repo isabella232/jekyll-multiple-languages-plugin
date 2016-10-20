@@ -72,7 +72,10 @@ module Jekyll
       self.parsed_translations ||= {}
       
       self.config['exclude_from_localizations'] ||= []
-      
+
+      # Custom Blurb code
+      self.config['default_lang_only'] ||= []
+
       if ( !self.config['languages']         or
             self.config['languages'].empty?  or
            !self.config['languages'].all?
@@ -116,8 +119,9 @@ module Jekyll
       languages.drop(1).each do |lang|
         
         # Language specific config/variables
-        @dest                  = dest_org    + "/" + lang
-        self.config['baseurl'] = baseurl_org + "/" + lang
+        # This is custom Blurb code
+        @dest                  = dest_org    + "/pages/" + lang
+        self.config['baseurl'] = baseurl_org + "/"
         self.config['lang']    =                     lang
         
         puts "Building site for language: \"#{self.config['lang']}\" to: #{self.dest}"
@@ -307,16 +311,44 @@ module Jekyll
       
       unless site.parsed_translations.has_key?(lang)
         puts              "Loading translation from file #{site.source}/_i18n/#{lang}.yml"
-        site.parsed_translations[lang] = YAML.load_file("#{site.source}/_i18n/#{lang}.yml")
+        # Custom Blurb code: this checked with the YML file was empty
+        file = YAML.load_file("#{site.source}/_i18n/#{lang}.yml")
+        site.parsed_translations[lang] = file ? file : {}
+
+        # Custom Blurb code: Load page-specific YML files in _18n/#{lang}/#{page}.yml
+        number_of_files = 0
+        Dir.foreach("#{site.source}/_i18n/#{lang}") do |item|
+          # Custom Blurb code: also ignore file '.gitignore' that is used just to force git to commit 'empty' dir
+          next if item == '.' or item == '..' or item == '.gitignore'
+
+          file = "#{site.source}/_i18n/#{lang}/#{item}"
+          begin
+            temp_hash = YAML.load_file(file)
+            site.parsed_translations[lang][item.gsub('.yml', '')] = temp_hash
+            number_of_files = number_of_files + 1
+          rescue Exception => error
+            puts "#{error}".red
+            raise StandardError, "Error occurred while loading #{item}: you might have a stray quote."
+          end
+        end
+        puts "Loaded #{number_of_files} page-specific translation files from /_i18n/#{lang}".magenta
       end
-      
-      translation = site.parsed_translations[lang].access(key) if key.is_a?(String)
+
+      # Custom Blurb code: don't throw error if translation dictionary is empty
+      translation = site.parsed_translations[lang].access(key) if key.is_a?(String) && site.parsed_translations[lang]
       
       if translation.nil? or translation.empty?
          translation = site.parsed_translations[site.config['default_lang']].access(key)
-        
-        puts "Missing i18n key: #{lang}:#{key}"
-        puts "Using translation '%s' from default language: %s" %[translation, site.config['default_lang']]
+
+         # Custom Blurb code: don't show warnings for EN only files
+         # Custom Blurb code: and don't show warnings for en-ca and en-au
+         dont_show_warnings_for_languages = site.config['dont_show_warnings_for_languages']
+         if (dont_show_warnings_for_languages && !dont_show_warnings_for_languages.include?(lang)) or lang == site.config['default_lang']
+           puts "Missing i18n key: #{lang}:#{key}".yellow
+         end
+
+        # Custom Blurb code: Removed to reduce noise
+        # puts "Using translation '%s' from default language: %s" %[translation, site.config['default_lang']]
       end
       
       translation
