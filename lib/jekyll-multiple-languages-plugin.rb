@@ -73,9 +73,6 @@ module Jekyll
       
       self.config['exclude_from_localizations'] ||= []
 
-      # Custom Blurb code
-      self.config['default_lang_only'] ||= []
-
       if ( !self.config['languages']         or
             self.config['languages'].empty?  or
            !self.config['languages'].all?
@@ -346,9 +343,6 @@ module Jekyll
          if (dont_show_warnings_for_languages && !dont_show_warnings_for_languages.include?(lang)) or lang == site.config['default_lang']
            puts "Missing i18n key: #{lang}:#{key}".yellow
          end
-
-        # Custom Blurb code: Removed to reduce noise
-        # puts "Using translation '%s' from default language: %s" %[translation, site.config['default_lang']]
       end
       
       translation
